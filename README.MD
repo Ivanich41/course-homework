@@ -3,3 +3,4 @@
 - [Настройка ПК](./dz_setup/README.MD)
 - [Vagrant](./dz_vagrant/README.MD)
 - [Ansible](./dz_ansible/README.MD)
+- [Raid](./dz_raid/README.MD)
