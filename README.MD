@@ -6,3 +6,6 @@
 - [Raid](./dz_raid/README.MD)
 - [LVM](./dz_lvm/README.MD)
 - [Репозиторий](./dz_repo/README.MD)
+- [ZFS](./dz_zfs/README.MD)
+- [Loader](./dz_loader/README.MD)
+- [NFS](./dz_nfs/README.MD)
