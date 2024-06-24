@@ -10,3 +10,4 @@
 - [Loader](./dz_loader/README.MD)
 - [NFS](./dz_nfs/README.MD)
 - [SystemD](./dz_systemd/README.MD)
+- [Bash](./dz_bash/README.MD)
