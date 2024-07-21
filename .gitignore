@@ -1,3 +1,5 @@
 **/.vagrant/
 dz_raid/*.vdi
 dz_zfs/*.vdi
+dz_prometheus/grafana_data/
+dz_prometheus/prometheus_data/

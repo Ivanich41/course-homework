@@ -2,8 +2,9 @@ services:
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
+    hostname: prometheus
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - ./prometheus_data:/prometheus
     ports:
       - "9090:9090"
@@ -14,6 +15,7 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
+    hostname: grafana
     volumes:
       - ./grafana_data:/var/lib/grafana
     ports:
@@ -26,6 +28,7 @@ services:
   node_exporter:
     image: prom/node-exporter:latest
     container_name: node_exporter
+    hostname: node-exporter
     ports:
       - "9100:9100"
     restart: always
