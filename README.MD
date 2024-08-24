@@ -15,3 +15,5 @@
 - [SELinux](./dz_selinux/README.MD)
 - [Docker](./dz_docker/README.MD)
 - [Prometheus](./dz_prometheus/README.MD)
+- [Пользователи и группы](./dz_users/README.MD)
+- [Сбор логов](./dz_logs/README.MD)
