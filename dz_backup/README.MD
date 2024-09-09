@@ -57,3 +57,4 @@
 
 ![10](./images/10.png)
 
+Все вышеописанные действия добавлены в плейбуки [backup_provision](./backup_provision.yml) и [client_provision](./client_provision.yml). Они отрабатывают при запуске `vagrant up`.

@@ -1,0 +1,106 @@
+---
+- name: Provision Borg Backup Client
+  hosts: all
+  become: true
+  vars:
+    borg_repo: "borg@192.168.50.13:/var/backup"
+    borg_passphrase: "111"
+    ssh_private_key: "/vagrant/keys/rsa"
+    backup_target: "/etc"
+    service_file: "/etc/systemd/system/borg-backup.service"
+    timer_file: "/etc/systemd/system/borg-backup.timer"
+
+  tasks:
+    - name: Update apt packages and install borgbackup
+      apt:
+        name: borgbackup
+        state: present
+        update_cache: yes
+
+    - name: Ensure /root/.ssh directory exists
+      file:
+        path: /root/.ssh
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: Copy SSH private key to /root/.ssh/id_rsa
+      copy:
+        src: "{{ ssh_private_key }}"
+        dest: /root/.ssh/id_rsa
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: Initialize Borg repository
+      command: borg init --encryption=repokey {{ borg_repo }}
+      environment:
+        - BORG_PASSPHRASE: "{{ borg_passphrase }}"
+        - BORG_RSH: "ssh -oStrictHostKeyChecking=no"
+
+    - name: Create first Borg backup
+      command: borg create --stats --list {{ borg_repo }}::etc-{now:%Y-%m-%d_%H:%M:%S} {{ backup_target }}
+      environment:
+        - BORG_PASSPHRASE: "{{ borg_passphrase }}"
+        - BORG_RSH: "ssh -oStrictHostKeyChecking=no"
+
+    - name: Add systemd service for Borg backup
+      copy:
+        dest: "{{ service_file }}"
+        content: |
+          [Unit]
+          Description=Borg Backup
+
+          [Service]
+          Type=oneshot
+
+          # Парольная фраза
+          Environment="BORG_PASSPHRASE={{ borg_passphrase }}"
+          # Репозиторий
+          Environment="REPO={{ borg_repo }}"
+          # Что бэкапим
+          Environment="BACKUP_TARGET={{ backup_target }}"
+
+          # Создание бэкапа
+          ExecStart=/bin/borg create \
+              --stats                \
+              ${REPO}::etc-{now:%%Y-%%m-%%d_%%H:%%M:%%S} ${BACKUP_TARGET}
+
+          # Проверка бэкапа
+          ExecStart=/bin/borg check ${REPO}
+
+          # Очистка старых бэкапов
+          ExecStart=/bin/borg prune \
+              --keep-daily  90      \
+              --keep-monthly 12     \
+              --keep-yearly  1       \
+              ${REPO}
+
+    - name: Add systemd timer for Borg backup
+      copy:
+        dest: "{{ timer_file }}"
+        content: |
+          [Unit]
+          Description=Borg Backup
+
+          [Timer]
+          OnUnitActiveSec=5min
+
+          [Install]
+          WantedBy=timers.target
+
+    - name: Reload systemd daemon
+      command: systemctl daemon-reload
+
+    - name: Enable and start borg-backup.service
+      systemd:
+        name: borg-backup.service
+        enabled: yes
+        state: started
+
+    - name: Enable and start borg-backup.timer
+      systemd:
+        name: borg-backup.timer
+        enabled: yes
+        state: started

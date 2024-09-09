@@ -1,0 +1,75 @@
+---
+- name: Borg Backup Setup
+  hosts: all
+  become: true
+  vars:
+    borg_user: borg
+    borg_password: borg
+    ssh_key_file: /vagrant/keys/rsa.pub
+    mount_point: /var/backup
+    device: /dev/sdb
+    fs_type: ext4
+
+  tasks:
+    - name: Update apt packages and install borgbackup
+      apt:
+        name: borgbackup
+        state: present
+        update_cache: yes
+
+    - name: Ensure borg user exists
+      user:
+        name: "{{ borg_user }}"
+        password: "{{ 'borg' | password_hash('sha512') }}"
+        shell: /bin/bash
+
+    - name: Create /var/backup directory
+      file:
+        path: "{{ mount_point }}"
+        state: directory
+        owner: "{{ borg_user }}"
+        group: "{{ borg_user }}"
+        mode: '0755'
+
+    - name: Create ext4 filesystem on /dev/sdb
+      filesystem:
+        fstype: "{{ fs_type }}"
+        dev: "{{ device }}"
+      when: device is defined
+
+    - name: Mount /dev/sdb to /var/backup
+      mount:
+        path: "{{ mount_point }}"
+        src: "{{ device }}"
+        fstype: "{{ fs_type }}"
+        state: mounted
+
+    - name: Clear lost+found
+      command: rmdir /var/backup/lost+found/
+    
+    - name: Chown to borg
+      command: chown borg:borg /var/backup
+
+    - name: Ensure /home/borg/.ssh directory exists
+      file:
+        path: /home/{{ borg_user }}/.ssh
+        state: directory
+        owner: "{{ borg_user }}"
+        group: "{{ borg_user }}"
+        mode: '0700'
+
+    - name: Copy SSH public key to authorized_keys
+      copy:
+        src: "{{ ssh_key_file }}"
+        dest: /home/{{ borg_user }}/.ssh/authorized_keys
+        owner: "{{ borg_user }}"
+        group: "{{ borg_user }}"
+        mode: '0600'
+
+    - name: Ensure borg user home directory permissions
+      file:
+        path: /home/{{ borg_user }}
+        state: directory
+        owner: "{{ borg_user }}"
+        group: "{{ borg_user }}"
+        mode: '0700'
