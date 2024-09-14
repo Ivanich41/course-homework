@@ -18,3 +18,4 @@
 - [Пользователи и группы](./dz_users/README.MD)
 - [Сбор логов](./dz_logs/README.MD)
 - [Бекапы](./dz_backup/README.MD)
+- [Архитектура сетей](./dz_network/README.md)
