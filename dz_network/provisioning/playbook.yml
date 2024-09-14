@@ -1,0 +1,68 @@
+---
+- hosts: all
+  become: true
+  tasks:
+    
+    - name: Installing traceroute package on hosts
+      apt:
+        name: traceroute
+        update_cache: yes
+        state: present
+      ignore_errors: true   
+
+    - name: Set up forward packages across routers
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: '1'
+        state: present
+      when: "'routers' in group_names"
+
+    - name: Disabling default route on all hosts except -inetRouter-
+      template:
+        src: 50-cloud-init.j2
+        dest: /etc/netplan/50-cloud-init.yaml
+        owner: root
+        group: root
+        mode: 0644
+      when: (ansible_hostname != "inetRouter")   
+
+    - name: Route configuring on hosts
+      template:
+        src: 50-vagrant-{{ ansible_hostname }}.j2
+        dest: /etc/netplan/50-vagrant.yaml
+        owner: root
+        group: root
+        mode: 0644
+
+
+- name: Configuring -inetRouter-
+  hosts: inetRouter
+  become: true
+  tasks:
+    - name: Disabling ufw service
+      systemd:
+        name: ufw
+        state: stopped
+        enabled: no
+
+    - name: Installing iptables-persistent service
+      apt:
+        name: iptables-persistent
+        update_cache: yes
+        state: present
+    
+    - name: Set up NAT on inetRouter
+      template:
+        src: rules.v4
+        dest: /etc/iptables/rules.v4
+        owner: root
+        group: root
+        mode: 0644 
+
+- hosts: all
+  become: true
+  tasks:
+    - name: Rebooting all hosts
+      reboot:
+        reboot_timeout: 600    
+...
