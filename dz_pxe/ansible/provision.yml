@@ -1,9 +1,9 @@
 ---
-- hosts: pxeserver
+- hosts: all
   become: true
   tasks:
 
-    - name: Disabling ufw service
+    - name: Disable ufw service
       systemd:
         name: ufw
         state: stopped
@@ -50,13 +50,13 @@
         - { pth: "/srv/ks" }
         - { pth: "/srv/tftp" }
 
-    - name: Downloading OS image
+    - name: Download OS image
       get_url:
         url: https://mirror.yandex.ru/ubuntu-releases/24.04/ubuntu-24.04.1-live-server-amd64.iso 
         dest: /srv/images/ubuntu-24.04.1-live-server-amd64.iso 
         force: yes 
 
-    - name: Downloading and unpacking netboot archive to /srv/tftp
+    - name: Download and unpack netboot archive 
       unarchive:
         src: https://mirror.yandex.ru/ubuntu-releases/24.04/ubuntu-24.04.1-netboot-amd64.tar.gz
         dest: /srv/tftp

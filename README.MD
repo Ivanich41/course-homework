@@ -19,3 +19,4 @@
 - [Сбор логов](./dz_logs/README.MD)
 - [Бекапы](./dz_backup/README.MD)
 - [Архитектура сетей](./dz_network/README.md)
+- [PXE&DHCP](./dz_pxe/README.MD)
