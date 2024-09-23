@@ -31,7 +31,7 @@
         state: present
       when: "'routers' in group_names"
 
-    - name: Disabling default route on all hosts except -inetRouter- and -inetRouter2-
+    - name: Disabling default route on all hosts except inetRouter and inetRouter2
       template:
         src: 50-cloud-init.j2
         dest: /etc/netplan/50-cloud-init.yaml
@@ -51,7 +51,7 @@
         mode: 0644
 
 
-- name: Configuring -inetRouter-
+- name: Configuring inetRouter
   hosts: inetRouter
   become: true
   tasks:
@@ -86,7 +86,7 @@
         name: sshd
         state: restarted
        
-- name: Configuring -inetRouter2-
+- name: Configuring inetRouter2
   hosts: inetRouter2
   become: true
   tasks:
