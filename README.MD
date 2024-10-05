@@ -21,3 +21,4 @@
 - [Архитектура сетей](./dz_network/README.md)
 - [PXE&DHCP](./dz_pxe/README.MD)
 - [iptables](./dz_iptables/README.MD)
+- [OSPF](./dz_ospf/README.MD)
