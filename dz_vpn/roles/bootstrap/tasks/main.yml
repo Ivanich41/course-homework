@@ -1,0 +1,21 @@
+---
+- name: Disable SELinux
+  selinux:
+    state: disabled
+
+- name: Enable EPEL Repository on Ubuntu (equivalent step)
+  apt:
+    name: software-properties-common
+    state: present
+  become: yes
+
+- name: Install packages
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_items:
+    - openvpn
+    - iperf3
+    - easy-rsa
+  become: yes

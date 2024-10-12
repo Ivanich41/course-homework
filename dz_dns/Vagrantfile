@@ -1,0 +1,40 @@
+Vagrant.configure("2") do |config|
+    # Указываем ОС, версию, количество ядер и ОЗУ
+    config.vm.box = "centos/7"
+    #config.vm.box_version = "20210210.0"
+
+    config.vm.provision "ansible" do |ansible|
+      #ansible.verbose = "vvv"
+      ansible.playbook = "playbook.yml"
+      ansible.become = "true"
+    end
+
+    config.vm.provider :virtualbox do |v|
+      v.memory = 1048
+      v.cpus = 1
+    end
+
+
+    # Указываем имена хостов и их IP-адреса
+    boxes = [
+      { :name => "ns01",
+        :ip => "192.168.50.10",
+      },
+      { :name => "ns02",
+        :ip => "192.168.50.11",
+      },
+      { :name => "client",
+        :ip => "192.168.50.15",
+      },
+      { :name => "client2",
+        :ip => "192.168.50.16",
+      }
+    ]
+    # Цикл запуска виртуальных машин
+    boxes.each do |opts|
+      config.vm.define opts[:name] do |config|
+        config.vm.hostname = opts[:name]
+        config.vm.network "private_network", ip: opts[:ip]
+      end
+    end
+  end

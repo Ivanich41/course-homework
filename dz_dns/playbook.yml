@@ -1,0 +1,87 @@
+---
+- hosts: all
+  become: yes
+  become_method: sudo
+  tasks:
+
+  - name: Setting Repo
+    shell: |
+      sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
+      sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
+      yum update -y
+
+  - name: install packages
+    yum: name={{ item }} state=latest
+    with_items:
+      - bind
+      - bind-utils
+      - ntp
+  - name: stop and disable chronyd
+    service:
+      name: chronyd
+      state: stopped
+      enabled: false
+
+  - name: start and enable ntpd
+    service:
+      name: ntpd
+      state: started
+      enabled: true
+
+  - name: set timezone to Moscow
+    timezone:
+      name: Europe/Moscow
+
+  - name: copy transferkey to all servers and the client
+    copy: src=provisioning/named.zonetransfer.key dest=/etc/named.zonetransfer.key owner=root group=named mode=0644
+
+
+
+- hosts: ns01
+  become: yes
+  become_method: sudo
+  tasks:
+  - name: copy named.conf
+    copy: src=provisioning/master-named.conf dest=/etc/named.conf owner=root group=named mode=0640
+  - name: copy zones
+    copy: src={{ item }} dest=/etc/named/ owner=root group=named mode=0660
+    with_fileglob:
+      - provisioning/named.d*
+      - provisioning/named.newdns.lab
+      - provisioning/named.dns.lab.client
+  - name: copy resolv.conf to the servers
+    template: src=provisioning/servers-resolv.conf.j2 dest=/etc/resolv.conf owner=root group=root mode=0644
+
+  - name: set /etc/named permissions
+    file: path=/etc/named owner=root group=named mode=0670
+
+  - name: ensure named is running and enabled
+    service: name=named state=restarted enabled=yes
+
+- hosts: ns02
+  become: yes
+  become_method: sudo
+  tasks:
+  - name: copy named.conf
+    copy: src=provisioning/slave-named.conf dest=/etc/named.conf owner=root group=named mode=0640
+  - name: copy resolv.conf to the servers
+    template: src=provisioning/servers-resolv.conf.j2 dest=/etc/resolv.conf owner=root group=root mode=0644
+
+  - name: set /etc/named permissions
+    file: path=/etc/named owner=root group=named mode=0670
+
+  - name: ensure named is running and enabled
+    service: name=named state=restarted enabled=yes
+
+- hosts: client, client2
+  become: yes
+  become_method: sudo
+  tasks:
+  - name: copy resolv.conf to the client
+    copy: src=provisioning/client-resolv.conf dest=/etc/resolv.conf owner=root group=root mode=0644
+  - name: copy rndc conf file
+    copy: src=provisioning/rndc.conf dest=/home/vagrant/rndc.conf owner=vagrant group=vagrant mode=0644
+  - name: makefile immutable
+    command: chattr +i /etc/resolv.conf
+  - name: copy motd to the client
+    copy: src=provisioning/client-motd dest=/etc/motd owner=root group=root mode=0644
