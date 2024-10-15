@@ -1,0 +1,20 @@
+VLAN=yes
+#Тип интерфейса - VLAN
+TYPE=Vlan
+#Указываем физическое устройство, через которые будет работать VLAN
+PHYSDEV=eth1
+#Указываем номер VLAN (VLAN_ID)
+VLAN_ID=1
+VLAN_NAME_TYPE=DEV_PLUS_VID_NO_PAD
+PROXY_METHOD=none
+BROWSER_ONLY=no
+BOOTPROTO=none
+#Указываем IP-адрес интерфейса
+IPADDR=10.10.10.254
+#Указываем префикс (маску) подсети
+PREFIX=24
+#Указываем имя vlan
+NAME=vlan1
+#Указываем имя подинтерфейса
+DEVICE=eth1.1
+ONBOOT=yes

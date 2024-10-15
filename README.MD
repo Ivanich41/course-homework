@@ -24,3 +24,4 @@
 - [OSPF](./dz_ospf/README.MD)
 - [VPN](./dz_vpn/README.MD)
 - [DNS](./dz_dns/README.md)
+- [VLAN](./dz_vlan/README.md)
