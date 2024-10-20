@@ -1,0 +1,36 @@
+services:
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "8080:80"  # Nginx будет работать на порту 8080
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - flask
+      - nodejs
+      - nginx-hello
+    networks:
+      - webnet
+
+  flask:
+    build: ./flask-app  # Каталог с Flask приложением
+    container_name: flask
+    networks:
+      - webnet
+
+  nodejs:
+    build: ./node-app  # Каталог с Node.js приложением
+    container_name: nodejs
+    networks:
+      - webnet
+
+  nginx-hello:
+    image: nginxdemos/hello
+    container_name: nginx-hello
+    networks:
+      - webnet
+
+networks:
+  webnet:
+    driver: bridge
