@@ -25,3 +25,4 @@
 - [VPN](./dz_vpn/README.MD)
 - [DNS](./dz_dns/README.md)
 - [VLAN](./dz_vlan/README.md)
+- [LDAP](./dz_ldap/README.md)
