@@ -1,0 +1,13 @@
+[mysqld]
+pid-file=/var/run/mysqld/mysqld.pid
+log-error=/var/log/mysqld.log
+datadir=/var/lib/mysql
+socket=/var/lib/mysql/mysql.sock
+symbolic-links=0
+
+server-id = 1
+log-bin = mysql-bin
+binlog_format = row
+gtid-mode=ON
+enforce-gtid-consistency
+log-replica-updates

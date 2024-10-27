@@ -27,3 +27,4 @@
 - [VLAN](./dz_vlan/README.md)
 - [LDAP](./dz_ldap/README.md)
 - [WEB](./dz_web/README.MD)
+- [MySQL](./dz_mysql/README.md)

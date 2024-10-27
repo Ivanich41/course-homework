@@ -1,0 +1,99 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+  gather_facts: false
+
+  tasks:
+
+    - name: update
+      apt:
+        update_cache: yes
+
+    - name: Upgrade all packages
+      apt:
+        upgrade: dist
+        force_apt_get: yes
+
+    - name: Set timezone to Europe/Moscow
+      timezone:
+        name: Europe/Moscow
+
+    - name: "Install required packages"
+      apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: yes
+      loop:
+        - gnupg2
+        - curl
+
+    - name: "Install percona-release package"
+      apt:
+        deb: "https://repo.percona.com/apt/percona-release_latest.generic_all.deb"
+
+    - name: "Update apt cache"
+      apt:
+        update_cache: yes
+
+    - name: "Set-up repo for MySql 8.0 version"
+      shell:  percona-release setup ps80
+
+    - name: "Install Percona"
+      apt:
+        name: percona-server-server
+        update_cache: yes
+        state: latest
+
+
+- name: master | configure MASTER
+  hosts: master
+  become: yes
+  become_user: root
+  gather_facts: false
+
+  tasks:
+
+    - name: copy config Mysql
+      copy:
+        src: templates/master_mysql.cnf
+        dest: /etc/mysql/conf.d/mysql.cnf
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: copy damp
+      copy:
+        src: templates/bet.dmp
+        dest: /home/vagrant/bet.dmp
+        owner: root
+        group: root
+        mode: 0640
+
+    - name: restart mysql
+      service:
+        name: mysql
+        state: restarted
+        enabled: yes
+
+- name: slave | configure SLAVE
+  hosts: slave
+  become: yes
+  become_user: root
+  gather_facts: false
+
+  tasks:
+
+    - name: copy config Mysql
+      copy:
+        src: templates/slave_mysql.cnf
+        dest: /etc/mysql/conf.d/mysql.cnf
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: restart mysql
+      service:
+        name: mysql
+        state: restarted
+        enabled: yes
