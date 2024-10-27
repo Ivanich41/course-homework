@@ -1,0 +1,97 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+  gather_facts: false
+
+  tasks:
+
+  - name: update
+    apt:
+      update_cache: yes
+
+  - name: Upgrade all packages
+    apt:
+      upgrade: dist
+      force_apt_get: yes
+
+  - name: Set timezone to Europe/Moscow
+    timezone:
+      name: Europe/Moscow
+
+  - name: Install required packages
+    apt:
+      name:
+        - python3-psycopg2
+        - acl
+      state: latest
+
+  - name: Set up Postgres repo
+    shell: |
+     sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+
+  - name: Download PostgreSQL key and add it to system keyring
+    apt_key:
+      url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+      state: present
+
+- hosts: DB
+  become: yes
+  become_user: root
+  gather_facts: false
+
+  tasks:
+
+  #- name: Set up Postgres repo
+  #  shell: |
+  #   sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+
+  #- name: Download PostgreSQL key and add it to system keyring
+  #  apt_key:
+  #    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+  #    state: present
+
+  - name: Update apt cache
+    apt:
+      update_cache: yes
+
+  - name: Install PostgreSQL
+    apt:
+      name:
+        - postgresql
+        - postgresql-contrib
+      state: present
+      update_cache: true
+
+
+
+- hosts: barman
+  become: yes
+  become_user: root
+  gather_facts: false
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install PostgreSQL
+      apt:
+        name:
+          - postgresql
+          - postgresql-contrib
+        state: present
+        update_cache: true
+
+- name: install postgres 16 and set up replication
+  hosts: DB
+  become: yes
+  roles:
+    - postgres_master
+    - postgres_replication
+
+- name: install and setting barman
+  hosts: all
+  become: yes
+  roles:
+    - barman

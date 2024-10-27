@@ -1,0 +1,45 @@
+---
+# tasks file for install_postgres
+#- name: Create DB for backup
+#  become_user: postgres
+#  postgresql_db:
+#    name: otus
+#    encoding: UTF-8
+#    template: template0
+#    state: present
+#  when: (ansible_hostname == "master")
+
+- name: Create a Superuser PostgreSQL database user
+  become: yes
+  become_user: postgres
+  postgresql_user:
+    name: "{{ replicator_user }}"
+    password: "{{ replicator_password }}"
+    role_attr_flags: REPLICATION
+    encrypted: yes
+    state: present
+  when: (ansible_hostname == "master")
+
+- name: copy postgresql.conf
+  template:
+    src: postgresql_master.conf.j2
+    dest: /etc/postgresql/16/main/postgresql.conf
+    owner: postgres
+    group: postgres
+    mode: '0600'
+  when: (ansible_hostname == "master")
+
+- name: copy pg_hba.conf
+  template:
+    src: pg_hba_master.conf.j2
+    dest: /etc/postgresql/16/main/pg_hba.conf
+    owner: postgres
+    group: postgres
+    mode: '0600'
+  when: (ansible_hostname == "master")
+
+- name: Restart Postgresql
+  systemd:
+    name: postgresql
+    state: restarted
+  when: (ansible_hostname == "master")

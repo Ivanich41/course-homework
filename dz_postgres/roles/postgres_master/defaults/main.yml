@@ -1,0 +1,6 @@
+---
+# defaults file for install_postgres
+replicator_user: 'replication'
+replicator_password: 'Otus2024!'
+master_ip: '192.168.57.11'
+slave_ip: '192.168.57.12'

@@ -1,0 +1,36 @@
+---
+# tasks file for postgres_replication
+- name: stop postgresql-server on slave
+  systemd:
+    name: postgresql
+    state: stopped
+  when: (ansible_hostname == "slave")
+
+- name: Remove files from data catalog
+  file:
+    path: /var/lib/postgresql/16/main/
+    state: absent
+  when: (ansible_hostname == "slave")
+
+- name: copy files from master to slave
+  become_user: postgres
+  expect:
+    command: 'pg_basebackup -h {{ master_ip }} -U {{ replicator_user }} -p 5432 -D /var/lib/postgresql/16/main/ -R -P'
+    responses:
+      '.*Password*': "{{ replicator_password }}"
+  when: (ansible_hostname == "slave")
+
+- name: Ensure PostgreSQL is listening
+  copy:
+    src: templates/postgresql_slave.conf.j2
+    dest: /etc/postgresql/16/main/postgresql.conf
+    owner: postgres
+    group: postgres
+    mode: 0644
+  when: (ansible_hostname == "slave")
+
+- name: Restart Postgresql
+  systemd:
+    name: postgresql
+    state: restarted
+  when: (ansible_hostname == "slave")
