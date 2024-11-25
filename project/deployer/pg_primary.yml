@@ -1,0 +1,128 @@
+---
+- hosts: postgres_primary
+  become: True
+  tasks:
+
+    - name: Install required packages
+      ansible.builtin.apt:
+        pkg:
+          - postgresql
+          - postgresql-contrib
+          - python3
+          - python3-pip
+        state: present
+        update_cache: yes
+
+    - name: Install psycopg2-binary python package
+      ansible.builtin.pip:
+        name: psycopg2-binary
+
+    - name: Install Node Exporter
+      ansible.builtin.apt:
+        name: prometheus-node-exporter
+        state: present
+
+    - name: Enable Node Exporter
+      ansible.builtin.systemd:
+        name: prometheus-node-exporter
+        enabled: true
+        state: started
+
+    - name: Copy postgresql.conf
+      ansible.builtin.copy:
+        src: /home/vagrant/deployer/pg_configs/primary/postgresql.conf
+        dest: /etc/postgresql/14/main/postgresql.conf
+        owner: postgres
+        group: postgres
+        mode: '0644'
+
+    
+    - name: Copy pg_hba.conf
+      ansible.builtin.copy:
+        src: /home/vagrant/deployer/pg_configs/primary/pg_hba.conf
+        dest: /etc/postgresql/14/main/pg_hba.conf
+        owner: postgres
+        group: postgres
+        mode: '0644'
+
+    
+    - name: Restart postgresql service
+      ansible.builtin.service:
+        name: postgresql
+        state: restarted
+
+
+    - name: Create datacenter database
+      become: true
+      become_user: postgres
+      ansible.builtin.command: |
+        psql -c "CREATE DATABASE datacenter;"
+      ignore_errors: true
+
+
+    - name: Change postgres password
+      become: yes
+      become_method: sudo
+      become_user: postgres
+      postgresql_user: 
+        db: datacenter
+        name: postgres
+        password: "P@ssw0rd"
+
+    - name: Clone repository
+      ansible.builtin.git:
+        repo: https://github.com/Ivanich41/database-coursework.git
+        dest: /opt/database-coursework
+        version: dedicated_db
+        force: yes
+
+    
+    - name: Load database schema from schema.sql
+      become_user: postgres
+      ansible.builtin.command: >
+        psql datacenter -f /opt/database-coursework/db/prepare.sql
+
+      
+
+    - name: Download Postgres Exporter binary
+      get_url:
+        url: https://github.com/prometheus-community/postgres_exporter/releases/download/v0.16.0/postgres_exporter-0.16.0.linux-amd64.tar.gz
+        dest: /tmp/postgres_exporter.tar.gz
+
+    - name: Extract Postgres Exporter
+      ansible.builtin.unarchive:
+        src: /tmp/postgres_exporter.tar.gz
+        dest: /usr/local/bin/
+        remote_src: yes
+
+    - name: Mv exporter up
+      shell: mv /usr/local/bin/postgres_exporter-0.16.0.linux-amd64/postgres_exporter /usr/local/bin/
+
+    - name: Ensure Postgres Exporter is executable
+      file:
+        path: /usr/local/bin/postgres_exporter
+        mode: '0755'
+
+    - name: Create systemd service for Postgres Exporter
+      copy:
+        dest: /etc/systemd/system/postgres_exporter.service
+        content: |
+          [Unit]
+          Description=Prometheus PostgreSQL Exporter
+          After=network.target
+
+          [Service]
+          User=postgres
+          Environment=DATA_SOURCE_NAME=postgresql://postgres:P@ssw0rd@localhost:5432/datacenter?sslmode=disable
+          ExecStart=/usr/local/bin/postgres_exporter
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd and start Postgres Exporter
+      systemd:
+        daemon_reload: yes
+        name: postgres_exporter
+        state: started
+        enabled: yes

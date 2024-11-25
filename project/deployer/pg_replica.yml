@@ -1,0 +1,66 @@
+- hosts: postgres_replica
+  become: true
+  tasks:
+    # 1. Установка необходимых пакетов
+    - name: Install required packages
+      ansible.builtin.apt:
+        pkg:
+          - postgresql
+          - postgresql-contrib
+          - python3
+          - python3-pip
+        state: present
+        update_cache: yes
+
+    - name: Install Node Exporter
+      ansible.builtin.apt:
+        name: prometheus-node-exporter
+        state: present
+
+    - name: Enable Node Exporter
+      ansible.builtin.systemd:
+        name: prometheus-node-exporter
+        enabled: true
+        state: started
+
+    - name: Install psycopg2-binary python package
+      ansible.builtin.pip:
+        name: psycopg2-binary
+
+    - name: Копирование postgresql.conf для реплики
+      copy:
+        src: /home/vagrant/deployer/pg_configs/replica/postgresql.conf
+        dest: /etc/postgresql/14/main/postgresql.conf
+        owner: postgres
+        group: postgres
+        mode: '0644'
+
+    - name: Остановка службы postgresql
+      service:
+        name: postgresql
+        state: stopped
+
+    - name: Удаление данных в директории main
+      file:
+        path: /var/lib/postgresql/14/main/
+        state: absent
+
+    - name: Запуск службы postgresql после очистки
+      service:
+        name: postgresql
+        state: started
+
+    - name: Выполнение pg_basebackup
+      become: yes
+      become_user: postgres
+      command: pg_basebackup -R -h 192.168.2.31 -U postgres -D /var/lib/postgresql/14/main -P
+      environment:
+        PGPASSWORD: "P@ssw0rd"
+      register: pg_basebackup_result
+      failed_when: pg_basebackup_result.rc != 0
+      changed_when: False
+
+    - name: Дополнительный рестарт чтобы работало
+      service:
+        name: postgresql
+        state: restarted

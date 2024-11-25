@@ -1,0 +1,9 @@
+127.0.0.1 localhost 
+192.168.2.11 nginx
+192.168.2.21 web1 
+192.168.2.21 web2
+192.168.2.31 pg-primary 
+192.168.2.32 pg-replica 
+192.168.2.41 monitoring 
+192.168.2.50 deployer
+192.168.2.60 backup  

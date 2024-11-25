@@ -1,0 +1,149 @@
+---
+- hosts: nginx
+  become: true
+  tasks:
+    # 1. Обновление списка пакетов
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+
+    # 2. Установка необходимых пакетов для SSL
+    - name: Install OpenSSL for certificate generation
+      ansible.builtin.apt:
+        name: openssl
+        state: present
+
+    # 3. Генерация самоподписанного SSL-сертификата
+    - name: Create directory for SSL certificates
+      ansible.builtin.file:
+        path: /etc/nginx/ssl
+        state: directory
+        mode: '0755'
+
+    - name: Generate SSL private key
+      ansible.builtin.command:
+        cmd: openssl genrsa -out /etc/nginx/ssl/nginx.key 2048
+      args:
+        creates: /etc/nginx/ssl/nginx.key
+
+    - name: Generate SSL certificate
+      ansible.builtin.command:
+        cmd: openssl req -new -x509 -key /etc/nginx/ssl/nginx.key -out /etc/nginx/ssl/nginx.crt -days 365 -subj "/C=US/ST=State/L=City/O=Organization/OU=Department/CN=datacenter.local"
+      args:
+        creates: /etc/nginx/ssl/nginx.crt
+
+    # 4. Установка Nginx
+    - name: Install nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+
+    - name: Copy main Nginx configuration file
+      ansible.builtin.template:
+        src: /home/vagrant/deployer/nginx/nginx.conf
+        dest: /etc/nginx/nginx.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+
+    # 5. Копирование конфигурации Nginx для HTTPS и проксирования
+    - name: Copy Nginx configuration file
+      ansible.builtin.template:
+        src: /home/vagrant/deployer/nginx/datacenter.conf
+        dest: /etc/nginx/sites-available/datacenter.local
+        owner: root
+        group: root
+        mode: '0644'
+
+    # 6. Включение конфигурации сайта
+    - name: Enable Nginx site configuration
+      ansible.builtin.file:
+        src: /etc/nginx/sites-available/datacenter.local
+        dest: /etc/nginx/sites-enabled/datacenter.local
+        state: link
+
+    # 7. Удаление стандартного сайта по умолчанию
+    - name: Remove default Nginx site
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    # 8. Перезапуск Nginx для применения конфигурации
+    - name: Restart Nginx
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
+
+    # 9. Установка Node Exporter
+    - name: Install Node Exporter
+      ansible.builtin.apt:
+        name: prometheus-node-exporter
+        state: present
+
+    - name: Enable Node Exporter
+      ansible.builtin.systemd:
+        name: prometheus-node-exporter
+        enabled: true
+        state: started
+
+    # 10. Скачивание Nginx Prometheus Exporter
+    - name: Download nginx-prometheus-exporter
+      ansible.builtin.get_url:
+        url: https://github.com/nginxinc/nginx-prometheus-exporter/releases/download/v0.11.0/nginx-prometheus-exporter_0.11.0_linux_amd64.tar.gz
+        dest: /tmp/nginx-prometheus-exporter.tar.gz
+
+    # 11. Распаковка Nginx Prometheus Exporter
+    - name: Extract nginx-prometheus-exporter
+      ansible.builtin.unarchive:
+        src: /tmp/nginx-prometheus-exporter.tar.gz
+        dest: /usr/local/bin/
+        remote_src: yes
+
+    # 12. Создание systemd unit для Nginx Prometheus Exporter
+    - name: Create systemd service file for nginx-prometheus-exporter
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/nginx-prometheus-exporter.service
+        content: |
+          [Unit]
+          Description=Nginx Prometheus Exporter
+          After=network.target
+
+          [Service]
+          Type=simple
+          ExecStart=/usr/local/bin/nginx-prometheus-exporter -nginx.scrape-uri http://127.0.0.1:80/stub_status
+          Restart=on-failure
+
+          [Install]
+          WantedBy=multi-user.target
+        mode: '0644'
+
+    # 13. Запуск и включение Nginx Prometheus Exporter
+    - name: Start and enable nginx-prometheus-exporter
+      ansible.builtin.systemd:
+        name: nginx-prometheus-exporter
+        enabled: true
+        state: started
+
+    # Запретить входящий трафик на внешний интерфейс на все порты кроме 80 и 443
+
+    - name: Установка iptables-persistent (для сохранения правил после перезагрузки)
+      apt:
+        name: iptables-persistent
+        state: present
+
+    - name: Разрешить трафик на порты 80 (HTTP) и 443 (HTTPS) на eth2
+      ansible.builtin.command: >
+        iptables -A INPUT -i eth2 -p tcp -m multiport --dports 80,443 -j ACCEPT
+
+    - name: Разрешить входящий трафик на loopback интерфейсе
+      ansible.builtin.command: iptables -A INPUT -i lo -j ACCEPT
+
+    - name: Разрешить исходящий трафик
+      ansible.builtin.command: iptables -A OUTPUT -j ACCEPT
+
+    - name: Запретить любой другой входящий трафик на eth2
+      ansible.builtin.command: iptables -A INPUT -i eth2 -j DROP
+
+    - name: Сохранить iptables правила
+      ansible.builtin.command: netfilter-persistent save

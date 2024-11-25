@@ -1,0 +1,63 @@
+---
+- name: Configure web servers
+  hosts: web
+  become: yes
+  tasks:
+    # 1. Проверка наличия Docker
+    - name: Check Docker installation
+      command: docker --version
+      register: docker_check
+      ignore_errors: true
+
+    # 2. Скачивание скрипта установки Docker, если Docker не установлен
+    - name: Get Docker installation script
+      ansible.builtin.get_url:
+        url: https://get.docker.com
+        dest: /root/get-docker.sh
+        mode: '700'
+      when: docker_check.rc != 0
+
+    # 3. Установка Docker через скрипт
+    - name: Run Docker installation script
+      ansible.builtin.shell: /root/get-docker.sh
+      when: docker_check.rc != 0
+
+    # 4. Удаление скрипта установки после завершения
+    - name: Remove Docker installation script
+      ansible.builtin.file:
+        path: /root/get-docker.sh
+        state: absent
+      when: docker_check.rc != 0
+
+    # 5. Установка git (если не установлен)
+    - name: Install git
+      ansible.builtin.package:
+        name: git
+        state: present
+
+    # 6. Клонирование репозитория с веткой dedicated_db
+    - name: Clone repository
+      ansible.builtin.git:
+        repo: https://github.com/Ivanich41/database-coursework.git
+        dest: /opt/database-coursework
+        version: dedicated_db
+        force: yes
+
+    # 7. Запуск docker-compose из файла compose_web_only.yml
+    - name: Run docker-compose
+      ansible.builtin.shell: |
+        docker compose -f /opt/database-coursework/compose_web_only.yml up -d
+      args:
+        chdir: /opt/database-coursework
+
+    # 8. Установка Node Exporter
+    - name: Install Node Exporter
+      ansible.builtin.apt:
+        name: prometheus-node-exporter
+        state: present
+
+    - name: Enable Node Exporter
+      ansible.builtin.systemd:
+        name: prometheus-node-exporter
+        enabled: true
+        state: started

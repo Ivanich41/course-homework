@@ -1,0 +1,29 @@
+global:
+  scrape_interval: 15s   # Интервал опроса всех целей
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Сбор метрик с Node Exporter на всех узлах, кроме backup и deployer
+  - job_name: 'node_exporter'
+    static_configs:
+      - targets:
+          - '192.168.2.11:9100'  # Nginx VM
+          - '192.168.2.21:9100'  # Web Server 1
+          - '192.168.2.22:9100'  # Web Server 2
+          - '192.168.2.31:9100'  # Postgres Primary
+          - '192.168.2.32:9100'  # Postgres Replica
+          - '192.168.2.41:9100'  # Monitoring VM (Grafana, Prometheus, Rsyslog)
+  
+  # Сбор метрик с Nginx Exporter на хосте nginx
+  - job_name: 'nginx_exporter'
+    static_configs:
+      - targets:
+          - '192.168.2.11:9113'  # Nginx VM, порт Nginx Exporter
+
+  # Сбор метрик с Postgres Exporter на хосте primary
+  - job_name: 'postgres_exporter'
+    static_configs:
+      - targets:
+          - '192.168.2.31:9187'  # Postgres Primary, порт Postgres Exporter
+
+    

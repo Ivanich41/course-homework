@@ -1,0 +1,86 @@
+Vagrant.configure("2") do |config|
+  # Настройки для всех машин
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "1024"
+    vb.cpus = 1
+  end
+
+  # Виртуальный адаптер хоста с изменённым диапазоном сети
+  config.vm.network "private_network", type: "dhcp", virtualbox__intnet: "virthost57"
+
+  # Nginx (192.168.57.11, 192.168.2.11)
+  config.vm.define "nginx" do |nginx|
+    nginx.vm.box = "generic/ubuntu2204"
+    nginx.vm.network "private_network", ip: "192.168.57.11"
+    nginx.vm.network "private_network", ip: "192.168.2.11", virtualbox__intnet: "internalnet"
+    nginx.vm.hostname = "nginx"
+  end
+
+  # Web server 1 (192.168.2.21)
+  config.vm.define "web1" do |web1|
+    web1.vm.box = "generic/ubuntu2204"
+    web1.vm.network "private_network", ip: "192.168.2.21", virtualbox__intnet: "internalnet"
+    web1.vm.hostname = "web1"
+  end
+
+  # Web server 2 (192.168.2.22)
+  config.vm.define "web2" do |web2|
+    web2.vm.box = "generic/ubuntu2204"
+    web2.vm.network "private_network", ip: "192.168.2.22", virtualbox__intnet: "internalnet"
+    web2.vm.hostname = "web2"
+  end
+
+  # Primary Postgres (192.168.2.31)
+  config.vm.define "pg-primary" do |pg|
+    pg.vm.box = "generic/ubuntu2204"
+    pg.vm.network "private_network", ip: "192.168.2.31", virtualbox__intnet: "internalnet"
+    pg.vm.hostname = "pg-primary"
+  end
+
+  # Replica Postgres (192.168.2.32)
+  config.vm.define "pg-replica" do |pg_replica|
+    pg_replica.vm.box = "generic/ubuntu2204"
+    pg_replica.vm.network "private_network", ip: "192.168.2.32", virtualbox__intnet: "internalnet"
+    pg_replica.vm.hostname = "pg-replica"
+  end
+
+  # Grafana, Prometheus, Loki (192.168.2.41)
+  config.vm.define "monitoring" do |monitoring|
+    monitoring.vm.box = "generic/ubuntu2204"
+    monitoring.vm.network "private_network", ip: "192.168.2.41", virtualbox__intnet: "internalnet"
+    monitoring.vm.hostname = "monitoring"
+
+    # Grafana UI
+    monitoring.vm.network "forwarded_port", guest: 3000, host: 30000
+    # Prometheus UI
+    monitoring.vm.network "forwarded_port", guest: 9090, host: 9999
+  end
+
+  # Ansible deployer (192.168.2.50)
+  config.vm.define "deployer" do |deployer|
+    deployer.vm.box = "generic/ubuntu2204"
+    deployer.vm.network "private_network", ip: "192.168.2.50", virtualbox__intnet: "internalnet"
+    deployer.vm.hostname = "deployer"
+
+    # Установка Ansible на машине Deployer
+    deployer.vm.provision "shell", inline: <<-SHELL
+      sudo apt update
+      sudo apt install -y ansible python3-pip sshpass jq
+      pip install psycopg2-binary
+      sudo cp -r /deployer/ /home/vagrant/
+
+    SHELL
+
+    # Синхронизация папки
+    deployer.vm.synced_folder "./deployer", "/deployer"
+  end
+
+  # Backup VM (192.168.2.60)
+  config.vm.define "backup" do |backup|
+    backup.vm.box = "generic/ubuntu2204"
+    backup.vm.network "private_network", ip: "192.168.2.60", virtualbox__intnet: "internalnet"
+    backup.vm.hostname = "backup"
+
+    backup.vm.network "private_network", ip: "192.168.57.12"
+  end
+end

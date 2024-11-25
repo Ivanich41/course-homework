@@ -1,0 +1,21 @@
+---
+- hosts: nginx, web, postgres_primary, postgres_replica
+  become: true
+  tasks:
+    - name: Install rsyslog
+      apt:
+        name: rsyslog
+        state: present
+
+    - name: Configure rsyslog to send logs to monitoring server
+      blockinfile:
+        path: /etc/rsyslog.d/50-default.conf
+        block: |
+          # Send logs to remote monitoring server (UDP and TCP)
+          *.* @192.168.2.41:514
+          *.* @@192.168.2.41:514
+
+    - name: Restart rsyslog service
+      service:
+        name: rsyslog
+        state: restarted

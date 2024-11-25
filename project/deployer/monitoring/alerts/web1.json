@@ -1,0 +1,139 @@
+{
+    "orgID": 1,
+    "folderUID": "de4jng9bufqwwb",
+    "ruleGroup": "1",
+    "title": "Web 1 Down",
+    "condition": "C",
+    "data": [
+      {
+        "refId": "A",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 10,
+          "to": 0
+        },
+        "datasourceUid": "ae4846sanzwu8f",
+        "model": {
+          "adhocFilters": [],
+          "datasource": {
+            "type": "prometheus",
+            "uid": "ae4846sanzwu8f"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "100 * (1 - avg(rate(node_cpu_seconds_total{mode=\"idle\", instance=\"192.168.2.21:9100\"}[$__rate_interval])))",
+          "instant": true,
+          "interval": "",
+          "intervalFactor": 1,
+          "intervalMs": 15000,
+          "legendFormat": "",
+          "maxDataPoints": 43200,
+          "range": false,
+          "refId": "A",
+          "step": 240
+        }
+      },
+      {
+        "refId": "B",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
+        "datasourceUid": "__expr__",
+        "model": {
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": [
+                  "B"
+                ]
+              },
+              "reducer": {
+                "params": [],
+                "type": "last"
+              },
+              "type": "query"
+            }
+          ],
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "expression": "A",
+          "intervalMs": 1000,
+          "maxDataPoints": 43200,
+          "reducer": "max",
+          "refId": "B",
+          "settings": {
+            "mode": "dropNN"
+          },
+          "type": "reduce"
+        }
+      },
+      {
+        "refId": "C",
+        "queryType": "",
+        "relativeTimeRange": {
+          "from": 0,
+          "to": 0
+        },
+        "datasourceUid": "__expr__",
+        "model": {
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [
+                  0
+                ],
+                "type": "lt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": [
+                  "C"
+                ]
+              },
+              "reducer": {
+                "params": [],
+                "type": "last"
+              },
+              "type": "query"
+            }
+          ],
+          "datasource": {
+            "type": "__expr__",
+            "uid": "__expr__"
+          },
+          "expression": "B",
+          "intervalMs": 1000,
+          "maxDataPoints": 43200,
+          "refId": "C",
+          "type": "threshold"
+        }
+      }
+    ],
+    "updated": "2024-11-20T17:15:04Z",
+    "noDataState": "NoData",
+    "execErrState": "Error",
+    "for": "30s",
+    "annotations": {
+      "__dashboardUid__": "rYdddlPWk",
+      "__panelId__": "20",
+      "summary": "Web 1 down"
+    },
+    "isPaused": false,
+    "notification_settings": {
+      "receiver": "TG Alerts"
+    },
+    "record": null
+  }

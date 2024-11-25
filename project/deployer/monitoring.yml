@@ -1,0 +1,200 @@
+---
+- hosts: monitoring
+  become: true
+  tasks:
+    # Установка зависимостей и Grafana
+    - name: Install dependencies for Grafana
+      apt:
+        name:
+          - adduser
+          - libfontconfig1
+          - musl
+          - postgresql-client-14
+          - jq
+        state: present
+        update_cache: yes
+
+    - name: Download Grafana package
+      ansible.builtin.get_url:
+        url: https://dl.grafana.com/oss/release/grafana_11.3.0_amd64.deb
+        dest: /tmp/grafana_11.3.0_amd64.deb
+
+    - name: Install Grafana
+      ansible.builtin.command: sudo dpkg -i /tmp/grafana_11.3.0_amd64.deb
+
+    - name: Enable and start Grafana service
+      ansible.builtin.systemd:
+        name: grafana-server
+        enabled: true
+        state: started
+
+    # Установка Prometheus
+    - name: Install Prometheus
+      apt:
+        name: prometheus
+        state: present
+        update_cache: yes
+
+    - name: Copy Prometheus configuration file
+      copy:
+        src: /home/vagrant/deployer/monitoring/prometheus.yml
+        dest: /etc/prometheus/prometheus.yml
+        owner: prometheus
+        group: prometheus
+        mode: '0644'
+
+    - name: Enable and start Prometheus service
+      ansible.builtin.systemd:
+        name: prometheus
+        enabled: true
+        state: started
+
+    # Настройка Grafana чрез API (добавление источника данных, дашбордов и алертов)
+
+- hosts: localhost
+  connection: local
+  tasks:
+    - name: Configure Grafana datasource (Prometheus)
+      shell : |
+        curl -X POST http://192.168.2.41:3000/api/datasources \
+          -H "Content-Type: application/json" \
+          -u admin:admin \
+          -d '{
+                "name": "Prometheus",
+                "type": "prometheus",
+                "url": "http://localhost:9090",
+                "access": "proxy",
+                "isDefault": true,
+                "uid": "ae4846sanzwu8f"
+              }'
+
+    - name: Upload Grafana Node Exporter Dashboard
+      shell : | 
+        curl -X POST http://192.168.2.41:3000/api/dashboards/db \
+          -H "Content-Type: application/json" \
+          -u admin:admin \
+          -d @/home/vagrant/deployer/monitoring/dashboards/node_exporter.json
+
+    - name: Upload Grafana Postgres Dashboard
+      shell : | 
+        curl -X POST http://192.168.2.41:3000/api/dashboards/db \
+          -H "Content-Type: application/json" \
+          -u admin:admin \
+          -d @/home/vagrant/deployer/monitoring/dashboards/postgres.json
+
+    - name: Upload Grafana Nginx Dashboard
+      shell : | 
+        curl -X POST http://192.168.2.41:3000/api/dashboards/db \
+          -H "Content-Type: application/json" \
+          -u admin:admin \
+          -d @/home/vagrant/deployer/monitoring/dashboards/nginx.json
+
+    - name: Deploy Telegram Bot data for alerts
+      shell: | 
+        curl -X POST http://192.168.2.41:3000/api/v1/provisioning/contact-points \
+                  -H "Content-Type: application/json" \
+                  -u admin:admin \
+                  -d '{
+            "name": "TG Alerts",
+            "type": "telegram",
+            "settings": {
+              "bottoken": "8190345493:AAH-bpCrmQZ1jQ8MnBxcbGRqW5z_PjHN3lE",
+              "chatid": "-4535716518"
+            }
+          }'
+      # Get Contact points
+      # point=$(curl -s -X GET http://192.168.2.41:3000/api/v1/provisioning/contact-points  -u admin:admin | jq 
+
+      #Get only contact point ID
+      # point=$(curl -s -X GET http://192.168.2.41:3000/api/v1/provisioning/contact-points  -u admin:admin | jq | grep -C 5 TG | grep uid | awk {'print $2'} | tr -d '"' | tr -d ',')
+
+      # Delete this point
+      # curl -s -X DELETE http://192.168.2.41:3000/api/v1/provisioning/contact-points/$point -u admin:admin
+      
+    # - name: Deploy Alertmanager Datasouce 
+    #   shell: | 
+    #     curl -X POST http://192.168.2.41:3000/api/datasources           -H "Content-Type: application/json"           -u admin:admin           -d '{
+    #             "name": "Alertmanager",
+    #             "type": "alertmanager",
+    #             "url": "http://127.0.0.1:9093",
+    #             "access": "proxy",
+    #             "isDefault": false,
+    #             "jsonData": {    
+    #               "implementation": "prometheus"            
+    #       }            
+    #     }'
+
+    # Стандартные алерты 
+
+    - name: Add folder
+      shell: | 
+        curl -X POST http://192.168.2.41:3000/api/folders \
+          -H "Content-Type: application/json" \
+          -u admin:admin \
+          -d '{ 
+            "uid" : "de4jng9bufqwwb", 
+            "title" : "1" 
+            }'
+
+    - name: Deploy Nginx alert
+      shell: | 
+        curl -X POST http://192.168.2.41:3000/api/v1/provisioning/alert-rules \
+          -H "Content-Type: application/json" \
+          -u admin:admin \
+          -d @/home/vagrant/deployer/monitoring/alerts/nginx.json
+      
+    - name: Deploy Web 1 alert
+      shell: | 
+        curl -X POST http://192.168.2.41:3000/api/v1/provisioning/alert-rules \
+          -H "Content-Type: application/json" \
+          -u admin:admin \
+          -d @/home/vagrant/deployer/monitoring/alerts/web1.json 
+
+    - name: Deploy Web 2 alert
+      shell: | 
+        curl -X POST http://192.168.2.41:3000/api/v1/provisioning/alert-rules \
+          -H "Content-Type: application/json" \
+          -u admin:admin \
+          -d @/home/vagrant/deployer/monitoring/alerts/web2.json
+
+    - name: Deploy PG Primary alert
+      shell: | 
+        curl -X POST http://192.168.2.41:3000/api/v1/provisioning/alert-rules \
+          -H "Content-Type: application/json" \
+          -u admin:admin \
+          -d @/home/vagrant/deployer/monitoring/alerts/pg_primary.json
+
+    - name: Deploy PG Replica alert
+      shell: | 
+        curl -X POST http://192.168.2.41:3000/api/v1/provisioning/alert-rules \
+          -H "Content-Type: application/json" \
+          -u admin:admin \
+          -d @/home/vagrant/deployer/monitoring/alerts/pg_replica.json
+ 
+
+- hosts: monitoring
+  become: true
+  tasks:
+    - name: Install rsyslog
+      apt:
+        name: rsyslog
+        state: present
+
+    - name: Copy rsyslog conf 
+      copy:
+        src: /home/vagrant/deployer/monitoring/rsyslog.conf
+        dest: /etc/rsyslog.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Create directory for remote logs
+      file:
+        path: /var/log/remote
+        state: directory
+        mode: '0755'
+
+    - name: Restart rsyslog service
+      service:
+        name: rsyslog
+        state: restarted
