@@ -29,3 +29,6 @@
 - [WEB](./dz_web/README.MD)
 - [MySQL](./dz_mysql/README.md)
 - [PostgreSQL](./dz_postgres/README.md)
+
+# Итоговый проект 
+- [Project](./project/README.MD)
